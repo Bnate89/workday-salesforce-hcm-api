@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+
+    <!-- POST /employees - Create Employee -->
+    <flow name="post:\\employees:application\\json:api-config" doc:name="POST /employees">
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Creating employee: ' ++ (payload.workerId default 'unknown')]" 
+                doc:name="Log Create Employee Request"/>
+        
+        <!-- Store original payload -->
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="Store Original Payload"/>
+        
+        <!-- Validate payload -->
+        <flow-ref name="validate-employee-payload" doc:name="Validate Employee Payload"/>
+        
+        <!-- Transform to Workday format -->
+        <ee:transform doc:name="Transform to Workday Format">
+            <ee:message>
+                <ee:set-payload resource="dwl/employee-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Call Workday API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="POST" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="/workers"
+                          doc:name="Create Worker in Workday">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+  "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </until-successful>
+        
+        <!-- Transform response back to API format -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/employee-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Cache the employee data -->
+        <os:store key="#['employee_' ++ payload.workerId]" 
+                  objectStore="HR_Cache_Object_Store" 
+                  doc:name="Cache Employee Data">
+            <os:value><![CDATA[#[payload]]]></os:value>
+        </os:store>
+        
+        <set-variable variableName="httpStatus" value="201" doc:name="Set HTTP Status 201"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Employee created successfully: ' ++ payload.workerId]" 
+                doc:name="Log Employee Created"/>
+    </flow>
+
+    <!-- GET /employees - Get Employee -->
+    <flow name="get:\\employees:api-config" doc:name="GET /employees">
+        <set-variable variableName="workerId" value="#[attributes.queryParams.workerId]" doc:name="Extract Worker ID"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Getting employee: ' ++ vars.workerId]" 
+                doc:name="Log Get Employee Request"/>
+        
+        <!-- Try to get from cache first -->
+        <try doc:name="Try Cache Lookup">
+            <os:retrieve key="#['employee_' ++ vars.workerId]" 
+                         objectStore="HR_Cache_Object_Store" 
+                         doc:name="Get from Cache"/>
+            <set-variable variableName="cacheHit" value="#[true]" doc:name="Set Cache Hit"/>
+            <logger level="DEBUG" 
+                    message="#['[' ++ correlationId ++ '] Cache hit for employee: ' ++ vars.workerId]" 
+                    doc:name="Log Cache Hit"/>
+            <error-handler>
+                <on-error-continue type="OS:KEY_NOT_FOUND" doc:name="On Cache Miss">
+                    <set-variable variableName="cacheHit" value="#[false]" doc:name="Set Cache Miss"/>
+                    <logger level="DEBUG" 
+                            message="#['[' ++ correlationId ++ '] Cache miss for employee: ' ++ vars.workerId]" 
+                            doc:name="Log Cache Miss"/>
+                </on-error-continue>
+            </error-handler>
+        </try>
+        
+        <!-- If not in cache, fetch from Workday -->
+        <choice doc:name="Check Cache Hit">
+            <when expression="#[vars.cacheHit != true]">
+                <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+                    <http:request method="GET" 
+                                  config-ref="Workday_HTTP_Request_Config" 
+                                  path="#['/workers/' ++ vars.workerId]"
+                                  doc:name="Get Worker from Workday"/>
+                </until-successful>
+                
+                <!-- Transform response -->
+                <ee:transform doc:name="Transform Workday Response">
+                    <ee:message>
+                        <ee:set-payload resource="dwl/employee-response-transform.dwl"/>
+                    </ee:message>
+                </ee:transform>
+                
+                <!-- Cache the result -->
+                <os:store key="#['employee_' ++ vars.workerId]" 
+                          objectStore="HR_Cache_Object_Store" 
+                          doc:name="Cache Employee Data">
+                    <os:value><![CDATA[#[payload]]]></os:value>
+                </os:store>
+            </when>
+        </choice>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Employee retrieved: ' ++ vars.workerId]" 
+                doc:name="Log Employee Retrieved"/>
+    </flow>
+
+    <!-- Sub-flow: Validate Employee Payload -->
+    <sub-flow name="validate-employee-payload" doc:name="Validate Employee Payload">
+        <choice doc:name="Validate Required Fields">
+            <when expression="#[payload.workerId == null or isEmpty(payload.workerId)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="workerId is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.firstName == null or isEmpty(payload.firstName)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="firstName is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.lastName == null or isEmpty(payload.lastName)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="lastName is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.email == null or isEmpty(payload.email)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="email is required" doc:name="Raise Validation Error"/>
+            </when>
+        </choice>
+    </sub-flow>
+
+</mule>

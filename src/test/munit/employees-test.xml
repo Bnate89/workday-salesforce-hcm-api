@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="employees-test-suite.xml"/>
+
+    <!-- Test POST /employees success (201) -->
+    <munit:test name="post-employees-success-test" description="Test POST /employees returns 201">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Create Worker">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/worker-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="os:store" doc:name="Mock Object Store">
+                <munit-tools:then-return/>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Employee Request">
+                <munit:payload value="#[readUrl('classpath://sample-data/employee-request.json', 'application/json')]" mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\employees:application\\json:api-config" doc:name="Call POST employees"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('201')]" message="Expected HTTP 201" doc:name="Assert HTTP 201"/>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.firstName]" is="#[MunitTools::equalTo('John')]" message="First name mismatch" doc:name="Assert First Name"/>
+            <munit-tools:assert-that expression="#[payload.lastName]" is="#[MunitTools::equalTo('Doe')]" message="Last name mismatch" doc:name="Assert Last Name"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test GET /employees success (200) -->
+    <munit:test name="get-employees-success-test" description="Test GET /employees returns 200">
+        <munit:behavior>
+            <munit-tools:mock-when processor="os:retrieve" doc:name="Mock Object Store Miss">
+                <munit-tools:then-return>
+                    <munit-tools:error typeId="OS:KEY_NOT_FOUND"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Get Worker">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/worker-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="os:store" doc:name="Mock Object Store">
+                <munit-tools:then-return/>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\employees:api-config" doc:name="Call GET employees"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.email]" is="#[MunitTools::equalTo('john.doe@company.com')]" message="Email mismatch" doc:name="Assert Email"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test GET /employees from cache -->
+    <munit:test name="get-employees-cache-hit-test" description="Test GET /employees returns cached data">
+        <munit:behavior>
+            <munit-tools:mock-when processor="os:retrieve" doc:name="Mock Object Store Hit">
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/employee-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\employees:api-config" doc:name="Call GET employees"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[vars.cacheHit]" is="#[MunitTools::equalTo(true)]" message="Expected cache hit" doc:name="Assert Cache Hit"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test POST /employees validation error (400) -->
+    <munit:test name="post-employees-validation-error-test" description="Test POST /employees returns 400 for missing workerId" expectedErrorType="APP:VALIDATION_ERROR">
+        <munit:execution>
+            <munit:set-event doc:name="Set Invalid Employee Request">
+                <munit:payload value='#[{"firstName": "John", "lastName": "Doe", "email": "john@test.com"}]' mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\employees:application\\json:api-config" doc:name="Call POST employees"/>
+        </munit:execution>
+    </munit:test>
+
+</mule>

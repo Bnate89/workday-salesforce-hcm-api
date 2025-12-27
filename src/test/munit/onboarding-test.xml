@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="onboarding-test-suite.xml"/>
+
+    <!-- Test POST /onboarding success -->
+    <munit:test name="post-onboarding-success-test" description="Test POST /onboarding returns 201">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Onboarding">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/onboarding-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Onboarding Request">
+                <munit:payload value="#[readUrl('classpath://sample-data/onboarding-request.json', 'application/json')]" mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\onboarding:application\\json:api-config" doc:name="Call POST onboarding"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('201')]" message="Expected HTTP 201" doc:name="Assert HTTP 201"/>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.onboardingStatus]" is="#[MunitTools::equalTo('In Progress')]" message="Status mismatch" doc:name="Assert Status"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test GET /onboarding success -->
+    <munit:test name="get-onboarding-success-test" description="Test GET /onboarding returns 200">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Get Onboarding">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/onboarding-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\onboarding:api-config" doc:name="Call GET onboarding"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.communityUserEnabled]" is="#[MunitTools::equalTo(true)]" message="Community user flag mismatch" doc:name="Assert Community User"/>
+            <munit-tools:assert-that expression="#[sizeOf(payload.assignedTasks)]" is="#[MunitTools::equalTo(3)]" message="Tasks count mismatch" doc:name="Assert Tasks Count"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test POST /onboarding missing workerId (400) -->
+    <munit:test name="post-onboarding-missing-workerid-test" description="Test POST /onboarding returns 400 for missing workerId" expectedErrorType="APP:VALIDATION_ERROR">
+        <munit:execution>
+            <munit:set-event doc:name="Set Invalid Onboarding Request">
+                <munit:payload value='#[{"communityUserEnabled": true, "onboardingStatus": "In Progress", "startDate": "2024-02-01", "assignedTasks": []}]' mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\onboarding:application\\json:api-config" doc:name="Call POST onboarding"/>
+        </munit:execution>
+    </munit:test>
+
+</mule>

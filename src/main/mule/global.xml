@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+      xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+      xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+        http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+        http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+        http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+
+    <!-- Global Property for environment -->
+    <global-property name="mule.env" value="dev" doc:name="Global Property - mule.env"/>
+    <global-property name="secure.key" value="mule-secure-key123" doc:name="Global Property - secure.key"/>
+
+    <!-- Configuration Properties -->
+    <configuration-properties file="config/application.yaml" doc:name="Configuration Properties - Base"/>
+    <configuration-properties file="config/application-${mule.env}.yaml" doc:name="Configuration Properties - Environment"/>
+
+    <!-- Secure Configuration Properties -->
+    <secure-properties:config name="Secure_Properties_Config" 
+                              file="config/secure-properties-${mule.env}.yaml" 
+                              key="${secure.key}"
+                              doc:name="Secure Properties Config">
+        <secure-properties:encrypt algorithm="AES" mode="CBC"/>
+    </secure-properties:config>
+
+    <!-- Global Error Handler Reference -->
+    <configuration defaultErrorHandler-ref="global-error-handler" doc:name="Configuration"/>
+
+    <!-- HTTP Listener Configuration -->
+    <http:listener-config name="HTTP_Listener_Config" doc:name="HTTP Listener Config">
+        <http:listener-connection host="0.0.0.0" port="${http.port}"/>
+    </http:listener-config>
+
+    <!-- HTTP Request Configuration for Workday -->
+    <http:request-config name="Workday_HTTP_Request_Config" 
+                         doc:name="Workday HTTP Request Config"
+                         responseTimeout="${workday.api.timeout}">
+        <http:request-connection host="${workday.api.baseUrl}" protocol="HTTPS">
+            <reconnection>
+                <reconnect frequency="2000" count="3"/>
+            </reconnection>
+            <tls:context>
+                <tls:trust-store insecure="true"/>
+            </tls:context>
+        </http:request-connection>
+    </http:request-config>
+
+    <!-- Object Store Configuration for HR Cache -->
+    <os:object-store name="HR_Cache_Object_Store"
+                     doc:name="HR Cache Object Store"
+                     persistent="true"
+                     maxEntries="1000"
+                     entryTtl="${objectstore.ttl}"
+                     entryTtlUnit="HOURS"
+                     expirationInterval="1"
+                     expirationIntervalUnit="HOURS"/>
+
+    <!-- APIKit Configuration -->
+    <apikit:config name="api-config" 
+                   api="api/salesforce-workday-api.raml" 
+                   outboundHeadersMapName="outboundHeaders" 
+                   httpStatusVarName="httpStatus"
+                   doc:name="APIKit Config"/>
+
+    <!-- API Autodiscovery -->
+    <api-gateway:autodiscovery apiId="${api.id}" 
+                               flowRef="api-main" 
+                               doc:name="API Autodiscovery"/>
+
+</mule>

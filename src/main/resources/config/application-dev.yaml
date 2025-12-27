@@ -1,0 +1,9 @@
+http:
+  port: "8081"
+
+workday:
+  api:
+    baseUrl: "https://wd5-impl-services1.workday.com/ccx/service/dev_tenant/Human_Resources/v40.0"
+
+logging:
+  level: "DEBUG"

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <error-handler name="global-error-handler" doc:name="Global Error Handler">
+        
+        <!-- Bad Request - 400 -->
+        <on-error-propagate type="APIKIT:BAD_REQUEST" doc:name="On Error Propagate - Bad Request">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Bad Request: ' ++ (error.description default 'Validation error')]" 
+                    doc:name="Log Bad Request"/>
+            <set-variable variableName="errorCode" value="HR_VALIDATION_ERROR" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Invalid request data']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="400" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Unauthorized - 401 -->
+        <on-error-propagate type="HTTP:UNAUTHORIZED" doc:name="On Error Propagate - Unauthorized">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Unauthorized: ' ++ (error.description default 'Authentication required')]" 
+                    doc:name="Log Unauthorized"/>
+            <set-variable variableName="errorCode" value="HR_UNAUTHORIZED" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Authentication required']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="401" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Forbidden - 403 -->
+        <on-error-propagate type="HTTP:FORBIDDEN" doc:name="On Error Propagate - Forbidden">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Forbidden: ' ++ (error.description default 'Access denied')]" 
+                    doc:name="Log Forbidden"/>
+            <set-variable variableName="errorCode" value="HR_FORBIDDEN" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Access denied']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="403" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Not Found - 404 -->
+        <on-error-propagate type="APIKIT:NOT_FOUND" doc:name="On Error Propagate - Not Found">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Not Found: ' ++ (error.description default 'Resource not found')]" 
+                    doc:name="Log Not Found"/>
+            <set-variable variableName="errorCode" value="HR_NOT_FOUND" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Resource not found']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="404" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Method Not Allowed - 405 -->
+        <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED" doc:name="On Error Propagate - Method Not Allowed">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Method Not Allowed: ' ++ (error.description default 'Method not allowed')]" 
+                    doc:name="Log Method Not Allowed"/>
+            <set-variable variableName="errorCode" value="HR_METHOD_NOT_ALLOWED" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Method not allowed']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="405" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Payload Too Large - 413 -->
+        <on-error-propagate type="STREAM_MAXIMUM_SIZE_EXCEEDED" doc:name="On Error Propagate - Payload Too Large">
+            <logger level="WARN" 
+                    message="#['[' ++ correlationId ++ '] Payload Too Large: ' ++ (error.description default 'Request payload too large')]" 
+                    doc:name="Log Payload Too Large"/>
+            <set-variable variableName="errorCode" value="HR_PAYLOAD_TOO_LARGE" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Request payload too large']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="413" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Upstream Error - 502 -->
+        <on-error-propagate type="HTTP:CONNECTIVITY, HTTP:TIMEOUT" doc:name="On Error Propagate - Upstream Error">
+            <logger level="ERROR" 
+                    message="#['[' ++ correlationId ++ '] Upstream Error: ' ++ (error.description default 'Upstream service error')]" 
+                    doc:name="Log Upstream Error"/>
+            <set-variable variableName="errorCode" value="HR_UPSTREAM_ERROR" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Upstream service error']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="502" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Service Unavailable - 503 -->
+        <on-error-propagate type="HTTP:SERVICE_UNAVAILABLE" doc:name="On Error Propagate - Service Unavailable">
+            <logger level="ERROR" 
+                    message="#['[' ++ correlationId ++ '] Service Unavailable: ' ++ (error.description default 'Service temporarily unavailable')]" 
+                    doc:name="Log Service Unavailable"/>
+            <set-variable variableName="errorCode" value="HR_SERVICE_UNAVAILABLE" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'Service temporarily unavailable']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="503" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+        <!-- Internal Server Error - 500 (Catch All) -->
+        <on-error-propagate type="ANY" doc:name="On Error Propagate - Internal Error">
+            <logger level="ERROR" 
+                    message="#['[' ++ correlationId ++ '] Internal Error: ' ++ (error.description default 'An unexpected error occurred')]" 
+                    doc:name="Log Internal Error"/>
+            <set-variable variableName="errorCode" value="HR_INTERNAL_ERROR" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="#[error.description default 'An unexpected error occurred']" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="500" doc:name="Set HTTP Status"/>
+        </on-error-propagate>
+
+    </error-handler>
+
+</mule>

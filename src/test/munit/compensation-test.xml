@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="compensation-test-suite.xml"/>
+
+    <!-- Test POST /compensation success -->
+    <munit:test name="post-compensation-success-test" description="Test POST /compensation returns 201">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Compensation">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/compensation-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Compensation Request">
+                <munit:payload value="#[readUrl('classpath://sample-data/compensation-request.json', 'application/json')]" mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\compensation:application\\json:api-config" doc:name="Call POST compensation"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('201')]" message="Expected HTTP 201" doc:name="Assert HTTP 201"/>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.baseSalary]" is="#[MunitTools::equalTo(150000)]" message="Salary mismatch" doc:name="Assert Salary"/>
+            <munit-tools:assert-that expression="#[payload.currency]" is="#[MunitTools::equalTo('USD')]" message="Currency mismatch" doc:name="Assert Currency"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test GET /compensation success -->
+    <munit:test name="get-compensation-success-test" description="Test GET /compensation returns 200">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Get Compensation">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/compensation-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\compensation:api-config" doc:name="Call GET compensation"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.bonusEligible]" is="#[MunitTools::equalTo(true)]" message="Bonus eligible mismatch" doc:name="Assert Bonus Eligible"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test HTTP Unauthorized (401) -->
+    <munit:test name="get-compensation-unauthorized-test" description="Test GET /compensation returns 401 on unauthorized" expectedErrorType="HTTP:UNAUTHORIZED">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Unauthorized">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:error typeId="HTTP:UNAUTHORIZED"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\compensation:api-config" doc:name="Call GET compensation"/>
+        </munit:execution>
+    </munit:test>
+
+</mule>

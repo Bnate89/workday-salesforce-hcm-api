@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="org-hierarchy-test-suite.xml"/>
+
+    <!-- Test GET /org-hierarchy success -->
+    <munit:test name="get-org-hierarchy-success-test" description="Test GET /org-hierarchy returns 200">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Org Hierarchy">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/org-hierarchy-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'WD-12345'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\org-hierarchy:api-config" doc:name="Call GET org-hierarchy"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.managerId]" is="#[MunitTools::equalTo('WD-00001')]" message="Manager ID mismatch" doc:name="Assert Manager ID"/>
+            <munit-tools:assert-that expression="#[payload.department]" is="#[MunitTools::equalTo('Engineering')]" message="Department mismatch" doc:name="Assert Department"/>
+            <munit-tools:assert-that expression="#[payload.costCenter]" is="#[MunitTools::equalTo('CC-1001')]" message="Cost center mismatch" doc:name="Assert Cost Center"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test GET /org-hierarchy not found -->
+    <munit:test name="get-org-hierarchy-not-found-test" description="Test GET /org-hierarchy returns 404" expectedErrorType="HTTP:NOT_FOUND">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Not Found">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:error typeId="HTTP:NOT_FOUND"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Query Params">
+                <munit:payload value="#[null]" mediaType="application/json"/>
+                <munit:attributes value="#[{queryParams: {workerId: 'INVALID-ID'}}]"/>
+            </munit:set-event>
+            <flow-ref name="get:\\org-hierarchy:api-config" doc:name="Call GET org-hierarchy"/>
+        </munit:execution>
+    </munit:test>
+
+</mule>

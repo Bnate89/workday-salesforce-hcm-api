@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- POST /job-changes - Create Job Change Record -->
+    <flow name="post:\\job-changes:application\\json:api-config" doc:name="POST /job-changes">
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Creating job change for: ' ++ (payload.workerId default 'unknown')]" 
+                doc:name="Log Create Job Change Request"/>
+        
+        <!-- Store original payload -->
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="Store Original Payload"/>
+        
+        <!-- Validate payload -->
+        <flow-ref name="validate-job-change-payload" doc:name="Validate Job Change Payload"/>
+        
+        <!-- Transform to Workday format -->
+        <ee:transform doc:name="Transform to Workday Format">
+            <ee:message>
+                <ee:set-payload resource="dwl/job-change-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Call Workday Job Change API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="POST" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="/job-changes"
+                          doc:name="Create Job Change in Workday">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+  "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </until-successful>
+        
+        <!-- Transform response back to API format -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/job-change-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <set-variable variableName="httpStatus" value="201" doc:name="Set HTTP Status 201"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Job change created for: ' ++ payload.workerId]" 
+                doc:name="Log Job Change Created"/>
+    </flow>
+
+    <!-- Sub-flow: Validate Job Change Payload -->
+    <sub-flow name="validate-job-change-payload" doc:name="Validate Job Change Payload">
+        <choice doc:name="Validate Required Fields">
+            <when expression="#[payload.workerId == null or isEmpty(payload.workerId)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="workerId is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.previousJobProfile == null or isEmpty(payload.previousJobProfile)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="previousJobProfile is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.newJobProfile == null or isEmpty(payload.newJobProfile)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="newJobProfile is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.effectiveDate == null]">
+                <raise-error type="APP:VALIDATION_ERROR" description="effectiveDate is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.reason == null or isEmpty(payload.reason)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="reason is required" doc:name="Raise Validation Error"/>
+            </when>
+        </choice>
+    </sub-flow>
+
+</mule>

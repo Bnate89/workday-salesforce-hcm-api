@@ -1,0 +1,55 @@
+{
+  "Worker": {
+    "Worker_Reference": {
+      "ID": {
+        "type": "Employee_ID",
+        "value": "WD-12345"
+      }
+    },
+    "Salesforce_User_ID": "SF-67890",
+    "Worker_Data": {
+      "Personal_Data": {
+        "Name_Data": {
+          "Legal_Name_Data": {
+            "Name_Detail_Data": {
+              "First_Name": "John",
+              "Last_Name": "Doe"
+            }
+          }
+        },
+        "Contact_Data": {
+          "Email_Address_Data": [{"Email_Address": "john.doe@company.com"}],
+          "Phone_Data": [{"Phone_Number": "+1-555-123-4567"}]
+        },
+        "Address_Data": [{
+          "Address_Line_Data": [
+            {"descriptor": "Address Line 1", "value": "123 Main St"},
+            {"descriptor": "Address Line 2", "value": "Suite 100"}
+          ],
+          "Municipality": "San Francisco",
+          "Region": "CA",
+          "Postal_Code": "94105",
+          "Country_Reference": {
+            "ID": {"type": "ISO_3166-1_Alpha-3_Code", "value": "USA"}
+          }
+        }]
+      },
+      "Employment_Data": {
+        "Worker_Status_Data": {
+          "Hire_Date": "2024-01-15",
+          "Active": true
+        },
+        "Worker_Type": "Regular",
+        "Worker_Job_Data": [{
+          "Position_Data": {
+            "Job_Profile_Summary_Data": {"Job_Profile_Name": "Software Engineer"},
+            "Business_Site_Summary_Data": {"Name": "Engineering"},
+            "Manager_as_of_last_detected_manager_change_Reference": {
+              "ID": {"type": "Employee_ID", "value": "WD-00001"}
+            }
+          }
+        }]
+      }
+    }
+  }
+}

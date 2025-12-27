@@ -1,0 +1,9 @@
+http:
+  port: "8081"
+
+workday:
+  api:
+    baseUrl: "https://wd5-services1.workday.com/ccx/service/prod_tenant/Human_Resources/v40.0"
+
+logging:
+  level: "WARN"

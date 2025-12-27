@@ -1,0 +1,18 @@
+http:
+  port: "8081"
+
+api:
+  id: "0"
+
+workday:
+  api:
+    baseUrl: "https://wd5-impl-services1.workday.com/ccx/service/tenant/Human_Resources/v40.0"
+    timeout: "30000"
+    retryCount: "3"
+
+objectstore:
+  ttl: "24"
+  ttlUnit: "HOURS"
+
+logging:
+  level: "INFO"

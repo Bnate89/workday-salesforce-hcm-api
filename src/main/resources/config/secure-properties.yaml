@@ -1,0 +1,9 @@
+workday:
+  credentials:
+    username: "![encrypted_username]"
+    password: "![encrypted_password]"
+
+anypoint:
+  platform:
+    clientId: "![encrypted_client_id]"
+    clientSecret: "![encrypted_client_secret]"

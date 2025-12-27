@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- GET /org-hierarchy - Get Organization Hierarchy -->
+    <flow name="get:\\org-hierarchy:api-config" doc:name="GET /org-hierarchy">
+        <set-variable variableName="workerId" value="#[attributes.queryParams.workerId]" doc:name="Extract Worker ID"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Getting org hierarchy for: ' ++ vars.workerId]" 
+                doc:name="Log Get Org Hierarchy Request"/>
+        
+        <!-- Call Workday API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="GET" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="#['/workers/' ++ vars.workerId ++ '/organizations']"
+                          doc:name="Get Org Hierarchy from Workday"/>
+        </until-successful>
+        
+        <!-- Transform response -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/org-hierarchy-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Org hierarchy retrieved for: ' ++ vars.workerId]" 
+                doc:name="Log Org Hierarchy Retrieved"/>
+    </flow>
+
+</mule>

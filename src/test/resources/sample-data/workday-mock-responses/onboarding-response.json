@@ -1,0 +1,20 @@
+{
+  "Onboarding_Response": {
+    "Worker_Reference": {
+      "ID": {
+        "type": "Employee_ID",
+        "value": "WD-12345"
+      }
+    },
+    "Onboarding_Data": {
+      "Community_User_Enabled": true,
+      "Status": "In Progress",
+      "Start_Date": "2024-02-01",
+      "Tasks": [
+        {"Task_Name": "Complete I-9", "Status": "Pending"},
+        {"Task_Name": "Setup Benefits", "Status": "Pending"},
+        {"Task_Name": "IT Equipment Request", "Status": "Pending"}
+      ]
+    }
+  }
+}

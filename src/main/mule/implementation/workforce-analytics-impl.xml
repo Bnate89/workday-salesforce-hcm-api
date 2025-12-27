@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- GET /workforce-analytics - Get Workforce Snapshot -->
+    <flow name="get:\\workforce-analytics:api-config" doc:name="GET /workforce-analytics">
+        <set-variable variableName="department" value="#[attributes.queryParams.department]" doc:name="Extract Department"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Getting workforce analytics for department: ' ++ vars.department]" 
+                doc:name="Log Get Workforce Analytics Request"/>
+        
+        <!-- Call Workday API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="GET" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="/workforce-analytics"
+                          doc:name="Get Workforce Analytics from Workday">
+                <http:query-params><![CDATA[#[output application/java
+---
+{
+  "department": vars.department
+}]]]></http:query-params>
+            </http:request>
+        </until-successful>
+        
+        <!-- Transform response -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/workforce-analytics-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Workforce analytics retrieved for department: ' ++ vars.department]" 
+                doc:name="Log Workforce Analytics Retrieved"/>
+    </flow>
+
+</mule>

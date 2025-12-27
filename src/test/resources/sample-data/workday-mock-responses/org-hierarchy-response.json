@@ -1,0 +1,30 @@
+{
+  "Worker": {
+    "Worker_Reference": {
+      "ID": {
+        "type": "Employee_ID",
+        "value": "WD-12345"
+      }
+    },
+    "Organization_Data": {
+      "Manager_Reference": {
+        "ID": {
+          "type": "Employee_ID",
+          "value": "WD-00001"
+        }
+      },
+      "Organization_Reference": {
+        "ID": {
+          "type": "Organization_ID",
+          "value": "Engineering"
+        }
+      },
+      "Cost_Center_Reference": {
+        "ID": {
+          "type": "Cost_Center_ID",
+          "value": "CC-1001"
+        }
+      }
+    }
+  }
+}

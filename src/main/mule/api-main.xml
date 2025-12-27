@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd">
+
+    <!-- Main API Flow -->
+    <flow name="api-main" doc:name="API Main Flow">
+        <http:listener config-ref="HTTP_Listener_Config" 
+                       path="/api/*" 
+                       doc:name="HTTP Listener"/>
+        <logger level="DEBUG" 
+                message="#['[' ++ correlationId ++ '] Incoming request: ' ++ attributes.method ++ ' ' ++ attributes.requestPath]" 
+                doc:name="Log Incoming Request"/>
+        <apikit:router config-ref="api-config" doc:name="APIKit Router"/>
+        <logger level="DEBUG" 
+                message="#['[' ++ correlationId ++ '] Response status: ' ++ (vars.httpStatus default '200')]" 
+                doc:name="Log Response"/>
+    </flow>
+
+    <!-- API Console Flow -->
+    <flow name="api-console" doc:name="API Console Flow">
+        <http:listener config-ref="HTTP_Listener_Config" 
+                       path="/console/*" 
+                       doc:name="HTTP Listener - Console"/>
+        <apikit:console config-ref="api-config" doc:name="APIKit Console"/>
+    </flow>
+
+    <!-- Health Check Flow -->
+    <flow name="get:\\health:api-config" doc:name="GET /health">
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Health check requested']" 
+                doc:name="Log Health Check"/>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" doc:name="Health Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "UP",
+  system: "Workday-HCM",
+  timestamp: now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"}
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+</mule>

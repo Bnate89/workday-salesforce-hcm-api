@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- POST /compensation - Create Compensation Record -->
+    <flow name="post:\\compensation:application\\json:api-config" doc:name="POST /compensation">
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Creating compensation record for: ' ++ (payload.workerId default 'unknown')]" 
+                doc:name="Log Create Compensation Request"/>
+        
+        <!-- Store original payload -->
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="Store Original Payload"/>
+        
+        <!-- Validate payload -->
+        <flow-ref name="validate-compensation-payload" doc:name="Validate Compensation Payload"/>
+        
+        <!-- Transform to Workday format -->
+        <ee:transform doc:name="Transform to Workday Format">
+            <ee:message>
+                <ee:set-payload resource="dwl/compensation-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Call Workday Compensation API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="POST" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="/compensation"
+                          doc:name="Create Compensation in Workday">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+  "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </until-successful>
+        
+        <!-- Transform response back to API format -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/compensation-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <set-variable variableName="httpStatus" value="201" doc:name="Set HTTP Status 201"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Compensation record created for: ' ++ payload.workerId]" 
+                doc:name="Log Compensation Created"/>
+    </flow>
+
+    <!-- GET /compensation - Get Compensation Record -->
+    <flow name="get:\\compensation:api-config" doc:name="GET /compensation">
+        <set-variable variableName="workerId" value="#[attributes.queryParams.workerId]" doc:name="Extract Worker ID"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Getting compensation for: ' ++ vars.workerId]" 
+                doc:name="Log Get Compensation Request"/>
+        
+        <!-- Call Workday API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="GET" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="#['/compensation/' ++ vars.workerId]"
+                          doc:name="Get Compensation from Workday"/>
+        </until-successful>
+        
+        <!-- Transform response -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/compensation-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Compensation retrieved for: ' ++ vars.workerId]" 
+                doc:name="Log Compensation Retrieved"/>
+    </flow>
+
+    <!-- Sub-flow: Validate Compensation Payload -->
+    <sub-flow name="validate-compensation-payload" doc:name="Validate Compensation Payload">
+        <choice doc:name="Validate Required Fields">
+            <when expression="#[payload.workerId == null or isEmpty(payload.workerId)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="workerId is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.baseSalary == null]">
+                <raise-error type="APP:VALIDATION_ERROR" description="baseSalary is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.currency == null or isEmpty(payload.currency)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="currency is required" doc:name="Raise Validation Error"/>
+            </when>
+        </choice>
+    </sub-flow>
+
+</mule>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="health-test-suite.xml"/>
+
+    <!-- Test GET /health returns UP status -->
+    <munit:test name="get-health-success-test" description="Test GET /health returns UP status">
+        <munit:execution>
+            <flow-ref name="get:\\health:api-config" doc:name="Call GET health"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('UP')]" message="Status should be UP" doc:name="Assert Status UP"/>
+            <munit-tools:assert-that expression="#[payload.system]" is="#[MunitTools::equalTo('Workday-HCM')]" message="System mismatch" doc:name="Assert System"/>
+            <munit-tools:assert-that expression="#[payload.timestamp]" is="#[MunitTools::notNullValue()]" message="Timestamp should not be null" doc:name="Assert Timestamp"/>
+        </munit:validation>
+    </munit:test>
+
+</mule>

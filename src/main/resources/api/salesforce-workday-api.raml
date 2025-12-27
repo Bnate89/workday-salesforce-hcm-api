@@ -1,0 +1,191 @@
+#%RAML 1.0
+title: Salesforce Workday HCM Integration API
+version: v1
+baseUri: https://api.company.com/salesforce-workday/{version}
+mediaType: application/json
+
+securitySchemes:
+  client-id-auth:
+    type: x-client-id-enforcement
+    describedBy:
+      headers:
+        client-id:
+          type: string
+          required: true
+        client-secret:
+          type: string
+          required: true
+securedBy:
+  - client-id-auth
+
+types:
+  Address:
+    properties:
+      line1: string
+      line2?: string
+      city: string
+      state?: string
+      postalCode?: string
+      country: string
+
+  Employee:
+    properties:
+      workerId: string
+      salesforceUserId?: string
+      firstName: string
+      lastName: string
+      email: string
+      phone?: string
+      hireDate: date-only
+      employmentStatus: string
+      workerType: string
+      jobProfile: string
+      department: string
+      managerId?: string
+      workLocation?: Address
+
+  OnboardingProfile:
+    properties:
+      workerId: string
+      communityUserEnabled: boolean
+      onboardingStatus: string
+      startDate: date-only
+      assignedTasks: string[]
+
+  Compensation:
+    properties:
+      workerId: string
+      baseSalary: number
+      currency: string
+      payFrequency: string
+      bonusEligible: boolean
+      effectiveDate: date-only
+
+  JobChange:
+    properties:
+      workerId: string
+      previousJobProfile: string
+      newJobProfile: string
+      effectiveDate: date-only
+      reason: string
+
+  OrgHierarchy:
+    properties:
+      workerId: string
+      managerId?: string
+      department: string
+      costCenter?: string
+
+  WorkforceSnapshot:
+    properties:
+      department: string
+      headcount: number
+      totalCompensation: number
+      currency: string
+      lastUpdated: datetime
+
+  ErrorResponse:
+    properties:
+      errorCode: string
+      message: string
+      correlationId: string
+      timestamp: datetime
+
+/employees:
+  post:
+    body:
+      application/json:
+        type: Employee
+    responses:
+      201:
+        body:
+          application/json:
+            type: Employee
+  get:
+    queryParameters:
+      workerId: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: Employee
+
+/onboarding:
+  post:
+    body:
+      application/json:
+        type: OnboardingProfile
+    responses:
+      201:
+        body:
+          application/json:
+            type: OnboardingProfile
+  get:
+    queryParameters:
+      workerId: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: OnboardingProfile
+
+/compensation:
+  post:
+    body:
+      application/json:
+        type: Compensation
+    responses:
+      201:
+        body:
+          application/json:
+            type: Compensation
+  get:
+    queryParameters:
+      workerId: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: Compensation
+
+/job-changes:
+  post:
+    body:
+      application/json:
+        type: JobChange
+    responses:
+      201:
+        body:
+          application/json:
+            type: JobChange
+
+/org-hierarchy:
+  get:
+    queryParameters:
+      workerId: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: OrgHierarchy
+
+/workforce-analytics:
+  get:
+    queryParameters:
+      department: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: WorkforceSnapshot
+
+/health:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              status: UP
+              system: Workday-HCM
+              timestamp: 2025-01-01T12:00:00Z

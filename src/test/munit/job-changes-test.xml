@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="job-changes-test-suite.xml"/>
+
+    <!-- Test POST /job-changes success -->
+    <munit:test name="post-job-changes-success-test" description="Test POST /job-changes returns 201">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request" doc:name="Mock Workday Job Change">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute whereValue="Workday_HTTP_Request_Config" attributeName="config-ref"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[readUrl('classpath://sample-data/workday-mock-responses/job-change-response.json', 'application/json')]" mediaType="application/json"/>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event doc:name="Set Job Change Request">
+                <munit:payload value="#[readUrl('classpath://sample-data/job-change-request.json', 'application/json')]" mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\job-changes:application\\json:api-config" doc:name="Call POST job-changes"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('201')]" message="Expected HTTP 201" doc:name="Assert HTTP 201"/>
+            <munit-tools:assert-that expression="#[payload.workerId]" is="#[MunitTools::equalTo('WD-12345')]" message="Worker ID mismatch" doc:name="Assert Worker ID"/>
+            <munit-tools:assert-that expression="#[payload.newJobProfile]" is="#[MunitTools::equalTo('Senior Software Engineer')]" message="New job profile mismatch" doc:name="Assert New Job Profile"/>
+            <munit-tools:assert-that expression="#[payload.reason]" is="#[MunitTools::equalTo('Promotion')]" message="Reason mismatch" doc:name="Assert Reason"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test POST /job-changes validation error -->
+    <munit:test name="post-job-changes-validation-error-test" description="Test POST /job-changes returns 400 for missing fields" expectedErrorType="APP:VALIDATION_ERROR">
+        <munit:execution>
+            <munit:set-event doc:name="Set Invalid Job Change Request">
+                <munit:payload value='#[{"workerId": "WD-12345", "previousJobProfile": "Junior"}]' mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\\job-changes:application\\json:api-config" doc:name="Call POST job-changes"/>
+        </munit:execution>
+    </munit:test>
+
+</mule>

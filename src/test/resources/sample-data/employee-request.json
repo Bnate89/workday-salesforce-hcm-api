@@ -1,0 +1,22 @@
+{
+  "workerId": "WD-12345",
+  "salesforceUserId": "SF-67890",
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@company.com",
+  "phone": "+1-555-123-4567",
+  "hireDate": "2024-01-15",
+  "employmentStatus": "Active",
+  "workerType": "Regular",
+  "jobProfile": "Software Engineer",
+  "department": "Engineering",
+  "managerId": "WD-00001",
+  "workLocation": {
+    "line1": "123 Main St",
+    "line2": "Suite 100",
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94105",
+    "country": "USA"
+  }
+}

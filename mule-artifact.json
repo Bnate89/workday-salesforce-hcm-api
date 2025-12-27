@@ -1,0 +1,5 @@
+{
+  "minMuleVersion": "4.9.3",
+  "javaSpecificationVersions": ["17"],
+  "secureProperties": ["secure.key", "workday.credentials.username", "workday.credentials.password", "anypoint.platform.clientId", "anypoint.platform.clientSecret"]
+}

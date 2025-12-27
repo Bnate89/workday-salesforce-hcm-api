@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- POST /onboarding - Create Onboarding Profile -->
+    <flow name="post:\\onboarding:application\\json:api-config" doc:name="POST /onboarding">
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Creating onboarding profile for: ' ++ (payload.workerId default 'unknown')]" 
+                doc:name="Log Create Onboarding Request"/>
+        
+        <!-- Store original payload -->
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="Store Original Payload"/>
+        
+        <!-- Validate payload -->
+        <flow-ref name="validate-onboarding-payload" doc:name="Validate Onboarding Payload"/>
+        
+        <!-- Transform to Workday format -->
+        <ee:transform doc:name="Transform to Workday Format">
+            <ee:message>
+                <ee:set-payload resource="dwl/onboarding-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Call Workday Onboarding API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="POST" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="/onboarding"
+                          doc:name="Create Onboarding in Workday">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+  "Content-Type": "application/json"
+}]]]></http:headers>
+            </http:request>
+        </until-successful>
+        
+        <!-- Transform response back to API format -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/onboarding-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <set-variable variableName="httpStatus" value="201" doc:name="Set HTTP Status 201"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Onboarding profile created for: ' ++ payload.workerId]" 
+                doc:name="Log Onboarding Created"/>
+    </flow>
+
+    <!-- GET /onboarding - Get Onboarding Profile -->
+    <flow name="get:\\onboarding:api-config" doc:name="GET /onboarding">
+        <set-variable variableName="workerId" value="#[attributes.queryParams.workerId]" doc:name="Extract Worker ID"/>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Getting onboarding profile for: ' ++ vars.workerId]" 
+                doc:name="Log Get Onboarding Request"/>
+        
+        <!-- Call Workday API with retry -->
+        <until-successful maxRetries="${workday.api.retryCount}" millisBetweenRetries="2000" doc:name="Retry Workday Call">
+            <http:request method="GET" 
+                          config-ref="Workday_HTTP_Request_Config" 
+                          path="#['/onboarding/' ++ vars.workerId]"
+                          doc:name="Get Onboarding from Workday"/>
+        </until-successful>
+        
+        <!-- Transform response -->
+        <ee:transform doc:name="Transform Workday Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/onboarding-response-transform.dwl"/>
+            </ee:message>
+        </ee:transform>
+        
+        <logger level="INFO" 
+                message="#['[' ++ correlationId ++ '] Onboarding profile retrieved for: ' ++ vars.workerId]" 
+                doc:name="Log Onboarding Retrieved"/>
+    </flow>
+
+    <!-- Sub-flow: Validate Onboarding Payload -->
+    <sub-flow name="validate-onboarding-payload" doc:name="Validate Onboarding Payload">
+        <choice doc:name="Validate Required Fields">
+            <when expression="#[payload.workerId == null or isEmpty(payload.workerId)]">
+                <raise-error type="APP:VALIDATION_ERROR" description="workerId is required" doc:name="Raise Validation Error"/>
+            </when>
+            <when expression="#[payload.startDate == null]">
+                <raise-error type="APP:VALIDATION_ERROR" description="startDate is required" doc:name="Raise Validation Error"/>
+            </when>
+        </choice>
+    </sub-flow>
+
+</mule>

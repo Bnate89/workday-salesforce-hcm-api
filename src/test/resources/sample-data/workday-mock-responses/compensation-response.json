@@ -1,0 +1,29 @@
+{
+  "Compensation_Response": {
+    "Worker_Reference": {
+      "ID": {
+        "type": "Employee_ID",
+        "value": "WD-12345"
+      }
+    },
+    "Compensation_Data": {
+      "Base_Pay": {
+        "Amount": 150000,
+        "Currency_Reference": {
+          "ID": {
+            "type": "Currency_ID",
+            "value": "USD"
+          }
+        },
+        "Frequency_Reference": {
+          "ID": {
+            "type": "Frequency_ID",
+            "value": "Monthly"
+          }
+        }
+      },
+      "Bonus_Eligible": true,
+      "Effective_Date": "2024-01-15"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="error-handler-test-suite.xml"/>
+
+    <!-- Test error response format -->
+    <munit:test name="error-response-format-test" description="Test error response has correct format">
+        <munit:execution>
+            <set-variable variableName="errorCode" value="HR_VALIDATION_ERROR" doc:name="Set Error Code"/>
+            <set-variable variableName="errorMessage" value="Test validation error" doc:name="Set Error Message"/>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.errorCode]" is="#[MunitTools::equalTo('HR_VALIDATION_ERROR')]" message="Error code mismatch" doc:name="Assert Error Code"/>
+            <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::equalTo('Test validation error')]" message="Error message mismatch" doc:name="Assert Error Message"/>
+            <munit-tools:assert-that expression="#[payload.correlationId]" is="#[MunitTools::notNullValue()]" message="Correlation ID should not be null" doc:name="Assert Correlation ID"/>
+            <munit-tools:assert-that expression="#[payload.timestamp]" is="#[MunitTools::notNullValue()]" message="Timestamp should not be null" doc:name="Assert Timestamp"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test default error code -->
+    <munit:test name="error-response-default-code-test" description="Test error response uses default code when not set">
+        <munit:execution>
+            <ee:transform doc:name="Transform Error Response">
+                <ee:message>
+                    <ee:set-payload resource="dwl/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.errorCode]" is="#[MunitTools::equalTo('HR_INTERNAL_ERROR')]" message="Default error code should be HR_INTERNAL_ERROR" doc:name="Assert Default Error Code"/>
+        </munit:validation>
+    </munit:test>
+
+</mule>

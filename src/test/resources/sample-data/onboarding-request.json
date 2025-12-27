@@ -1,0 +1,7 @@
+{
+  "workerId": "WD-12345",
+  "communityUserEnabled": true,
+  "onboardingStatus": "In Progress",
+  "startDate": "2024-02-01",
+  "assignedTasks": ["Complete I-9", "Setup Benefits", "IT Equipment Request"]
+}

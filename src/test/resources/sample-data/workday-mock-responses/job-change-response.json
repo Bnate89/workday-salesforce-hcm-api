@@ -1,0 +1,16 @@
+{
+  "Job_Change_Response": {
+    "Worker_Reference": {
+      "ID": {
+        "type": "Employee_ID",
+        "value": "WD-12345"
+      }
+    },
+    "Job_Change_Data": {
+      "Previous_Job_Profile": "Junior Software Engineer",
+      "New_Job_Profile": "Senior Software Engineer",
+      "Effective_Date": "2024-06-01",
+      "Reason": "Promotion"
+    }
+  }
+}
